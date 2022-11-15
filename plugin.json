@@ -1,0 +1,36 @@
+
+{
+  "slug": "RacketScience2",
+  "name": "RacketScience2",
+  "version": "2.0.0",
+  "license": "GPL-3.0",
+  "brand": "RacketScience",
+  "author": "Ewen Bates",
+  "authorEmail": "ContemporaryInsanity@gmail.com",
+  "authorUrl": "",
+  "pluginUrl": "https://github.com/ContemporaryInsanity/RacketScience2",
+  "manualUrl": "https://github.com/ContemporaryInsanity/RacketScience2",
+  "sourceUrl": "https://github.com/ContemporaryInsanity/RacketScience2",
+  "donateUrl": "https://www.paypal.me/EwenBates",
+  "modules":
+  [
+    {
+      "slug": "RSRand",
+      "name": "Rand",
+      "description": "Module randomiser",
+      "tags":
+      [
+        "Utility"
+      ]
+    },
+    {
+      "slug": "RSSlew",
+      "name": "Slew",
+      "description": "Slew",
+      "tags":
+      [
+        "Utility"
+      ]
+    }
+  ]
+}
