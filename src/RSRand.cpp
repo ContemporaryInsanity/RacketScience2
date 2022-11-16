@@ -10,6 +10,7 @@ struct RSRand : Module {
 		PIVOT_BUTTON,
 		THINGY_BUTTON,
 		WOTSIT_BUTTON,
+		EJECT_BUTTON,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -45,11 +46,12 @@ struct RSRand : Module {
         
 		if(m->rightExpander.moduleId < 0) return;
 		
-		ModuleWidget *mw = APP->scene->rack->getModule(m->rightExpander.moduleId);
-		if(!mw) return;
 
 		if(randTrigger.process(params[RAND_BUTTON].getValue() + inputs[RAND_INPUT].getVoltage())) {
 			int i = 0;
+			
+			ModuleWidget *mw = APP->scene->rack->getModule(m->rightExpander.moduleId);
+			if(!mw) return;
 
 			for(ParamWidget *param : mw->getParams()) {
 				float r = (float)rand() / (float)RAND_MAX - 0.5f;
@@ -70,6 +72,9 @@ struct RSRand : Module {
 		// On hitting PIVOT, store current parameters
         if(pivotTrigger.process(params[PIVOT_BUTTON].getValue())) {
 			f.clear();
+
+			ModuleWidget *mw = APP->scene->rack->getModule(m->rightExpander.moduleId);
+			if(!mw) return;
 
 			for(ParamWidget *param : mw->getParams())
 				f.push_back(param->getParamQuantity()->getScaledValue());
@@ -104,36 +109,37 @@ struct RSRandWidget : ModuleWidget {
 		setModule(module);
         this->module = module;
 
-		int vs = 45, lo = 25; // Vertical spacing / label offset
         box.size.x = mm2px(5.08 * 3);
 		int middle = box.size.x / 2 + 1;
 
-		addChild(new RSLabelCentered(middle, box.pos.y + 15, "RAND>", 14, module));
+		addChild(new RSLabelCentered(middle, box.pos.y + 15, "RAND>", RS_TITLE_FONT_SIZE, module));
 
-		addChild(new RSLabelCentered(middle, box.size.y - 17, "Racket", 14, module));
-		addChild(new RSLabelCentered(middle, box.size.y - 5, "Science", 14, module));
+		addChild(new RSLabelCentered(middle, box.size.y - 17, "Racket", RS_TITLE_FONT_SIZE, module));
+		addChild(new RSLabelCentered(middle, box.size.y - 5, "Science", RS_TITLE_FONT_SIZE, module));
 
-		addParam(createParamCentered<RSButtonMomentary>(Vec(middle, vs), module, RSRand::RAND_BUTTON));
-		addChild(new RSLabelCentered(middle, vs + lo, "RAND", 12, module));
+		addParam(createParamCentered<RSButtonMomentary>(Vec(middle, RS_ROW_COMP(0)), module, RSRand::RAND_BUTTON));
+		addChild(new RSLabelCentered(middle, RS_ROW_LABEL(0), "RAND", RS_LABEL_FONT_SIZE, module));
 
-		addParam(createParamCentered<RSKnobSml>(Vec(middle, vs * 2), module, RSRand::RAND_KNOB));
-		addChild(new RSLabelCentered(middle, vs * 2 + lo, "%", 12, module));
+		addParam(createParamCentered<RSKnobSml>(Vec(middle, RS_ROW_COMP(1)), module, RSRand::RAND_KNOB));
+		addChild(new RSLabelCentered(middle, RS_ROW_LABEL(1), "%", RS_LABEL_FONT_SIZE, module));
 
-		addParam(createParamCentered<RSKnobSml>(Vec(middle, vs * 3), module, RSRand::SLEW_KNOB));
-		addChild(new RSLabelCentered(middle, vs * 3 + lo, "SLEW", 12, module));
+		addParam(createParamCentered<RSKnobSml>(Vec(middle, RS_ROW_COMP(2)), module, RSRand::SLEW_KNOB));
+		addChild(new RSLabelCentered(middle, RS_ROW_LABEL(2), "SLEW", RS_LABEL_FONT_SIZE, module));
 
-		addParam(createParamCentered<RSButtonToggle>(Vec(middle, vs * 4), module, RSRand::PIVOT_BUTTON));
-		addChild(new RSLabelCentered(middle, vs * 4 + lo, "PIVOT", 12, module));
+		addParam(createParamCentered<RSButtonToggle>(Vec(middle, RS_ROW_COMP(3)), module, RSRand::PIVOT_BUTTON));
+		addChild(new RSLabelCentered(middle, RS_ROW_LABEL(3), "PIVOT", RS_LABEL_FONT_SIZE, module));
 
-		addParam(createParamCentered<RSRoundButtonToggle>(Vec(middle, vs * 5), module, RSRand::THINGY_BUTTON));
-		addChild(new RSLabelCentered(middle, vs * 5 + lo, "THINGY", 12, module));
+		addParam(createParamCentered<RSRoundButtonToggle>(Vec(middle, RS_ROW_COMP(4)), module, RSRand::THINGY_BUTTON));
+		addChild(new RSLabelCentered(middle, RS_ROW_LABEL(4), "THINGY", RS_LABEL_FONT_SIZE, module));
 
-		addParam(createParamCentered<RSRoundButtonToggle>(Vec(middle, vs * 6), module, RSRand::WOTSIT_BUTTON));
-		addChild(new RSLabelCentered(middle, vs * 6 + lo, "WOTSIT", 12, module));
+		addParam(createParamCentered<RSRoundButtonToggle>(Vec(middle, RS_ROW_COMP(5)), module, RSRand::WOTSIT_BUTTON));
+		addChild(new RSLabelCentered(middle, RS_ROW_LABEL(5), "WOTSIT", RS_LABEL_FONT_SIZE, module));
 
-		addInput(createInputCentered<RSJackMonoIn>(Vec(middle, vs * 7), module, RSRand::RAND_INPUT));
-		addChild(new RSLabelCentered(middle, vs * 7 + lo, "TRIG", 12, module));
+		addParam(createParamCentered<RSRoundButtonToggle>(Vec(middle, RS_ROW_COMP(6)), module, RSRand::WOTSIT_BUTTON));
+		addChild(new RSLabelCentered(middle, RS_ROW_LABEL(6), "EJECT", RS_LABEL_FONT_SIZE, module));
 
+		addInput(createInputCentered<RSJackMonoIn>(Vec(middle, RS_ROW_COMP(7)), module, RSRand::RAND_INPUT));
+		addChild(new RSLabelCentered(middle, RS_ROW_LABEL(7), "TRIG", RS_LABEL_FONT_SIZE, module));
 	};
 
 

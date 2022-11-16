@@ -1,6 +1,15 @@
 #define COLOR_RS_GREY   nvgRGB(0x19, 0x19, 0x19)
 #define COLOR_RS_BRONZE nvgRGB(0x85, 0x87, 0x39)
-#define COLOR_RS_LABEL  nvgRGB(0xd4, 0xd4, 0xd4)
+#define COLOR_RS_LABEL  nvgRGB(0xf0, 0xf0, 0xf0)
+
+#define RS_LAYOUT_TOP			36
+#define RS_LAYOUT_V_SPACING 	41
+#define RS_LAYOUT_LABEL_OFFSET	22
+#define RS_ROW_COMP(r)	RS_LAYOUT_TOP + (RS_LAYOUT_V_SPACING * r)
+#define RS_ROW_LABEL(r)	RS_LAYOUT_TOP + (RS_LAYOUT_V_SPACING * r) + RS_LAYOUT_LABEL_OFFSET
+
+#define RS_TITLE_FONT_SIZE 14
+#define RS_LABEL_FONT_SIZE 11
 
 // Labels
 struct RSLabel : LedDisplay {

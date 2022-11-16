@@ -111,26 +111,25 @@ struct RSSlewWidget : ModuleWidget {
 		setModule(module);
         this->module = module;
 
-		int vs = 45, lo = 25; // Vertical spacing / label offset
         box.size.x = mm2px(5.08 * 3);
 		int middle = box.size.x / 2 + 1;
 
-		addChild(new RSLabelCentered(middle, box.pos.y + 15, "SLEW", 14, module));
+		addChild(new RSLabelCentered(middle, box.pos.y + 15, "SLEW", RS_TITLE_FONT_SIZE, module));
 
-		addChild(new RSLabelCentered(middle, box.size.y - 17, "Racket", 14, module));
-		addChild(new RSLabelCentered(middle, box.size.y - 5, "Science", 14, module));
+		addChild(new RSLabelCentered(middle, box.size.y - 17, "Racket", RS_TITLE_FONT_SIZE, module));
+		addChild(new RSLabelCentered(middle, box.size.y - 5, "Science", RS_TITLE_FONT_SIZE, module));
 
-		addInput(createInputCentered<RSJackMonoIn>(Vec(middle, vs), module, RSSlew::INPUT));
-		addChild(new RSLabelCentered(middle, vs + lo, "IN", 12, module));
+		addInput(createInputCentered<RSJackMonoIn>(Vec(middle, RS_ROW_COMP(0)), module, RSSlew::INPUT));
+		addChild(new RSLabelCentered(middle, RS_ROW_LABEL(0), "IN", RS_LABEL_FONT_SIZE, module));
 
-		addParam(createParamCentered<RSKnobSml>(Vec(middle, vs * 2), module, RSSlew::SLEW_KNOB));
-		addChild(new RSLabelCentered(middle, vs * 2 + lo, "SLEW", 12, module));
+		addParam(createParamCentered<RSKnobSml>(Vec(middle, RS_ROW_COMP(1)), module, RSSlew::SLEW_KNOB));
+		addChild(new RSLabelCentered(middle, RS_ROW_LABEL(1), "SLEW", RS_LABEL_FONT_SIZE, module));
 
-		addOutput(createOutputCentered<RSJackMonoOut>(Vec(middle, vs * 3), module, RSSlew::OUTPUT));
-		addChild(new RSLabelCentered(middle, vs * 3 + lo, "OUT", 12, module));
+		addOutput(createOutputCentered<RSJackMonoOut>(Vec(middle,  RS_ROW_COMP(2)), module, RSSlew::OUTPUT));
+		addChild(new RSLabelCentered(middle, RS_ROW_LABEL(2), "OUT", RS_LABEL_FONT_SIZE, module));
 
-		addOutput(createOutputCentered<RSJackMonoOut>(Vec(middle, vs * 4), module, RSSlew::GATE));
-		addChild(new RSLabelCentered(middle, vs * 4 + lo, "GATE", 12, module));
+		addOutput(createOutputCentered<RSJackMonoOut>(Vec(middle,  RS_ROW_COMP(3)), module, RSSlew::GATE));
+		addChild(new RSLabelCentered(middle, RS_ROW_LABEL(3), "GATE", RS_LABEL_FONT_SIZE, module));
 	};
 
 
