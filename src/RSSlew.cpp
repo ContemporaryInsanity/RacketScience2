@@ -21,70 +21,77 @@ struct RSSlew : Module {
 	};
 
 	// With thanks to Paul https://github.com/baconpaul/BaconPlugs/blob/main/src/Glissinator.hpp
-	float priorValue, targetValue;
-	int offsetCount;
+	float priorValue[16], targetValue[16];
+	int offsetCount[16] = {-1};
 
 	RSSlew() {
 		config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
 
+		configInput(INPUT, "CV to slew");
 		configParam(SLEW_KNOB, 0.0f, 1.0f, 0.0f, "Slew", " S");
+		configOutput(OUTPUT, "Slewed");
+		configOutput(GATE, "High when slewing");
 		configBypass(INPUT, OUTPUT);
-
-		offsetCount = -1;
 	}
 
 	void process(const ProcessArgs& args) override {
 		Module *m = this;
 		if(!m) return;
 
-		float currentValue = inputs[INPUT].getVoltage();
-		float slewTime = params[SLEW_KNOB].getValue();
+		int channelCount = inputs[INPUT].getChannels();
+		outputs[OUTPUT].setChannels(channelCount);
+		outputs[GATE].setChannels(channelCount);
 
+		float slewTime = params[SLEW_KNOB].getValue();
 		int shiftTime = slewTime * args.sampleRate;
 		if(shiftTime < 10) shiftTime = 10;
 
-		if(offsetCount < 0) {
-			priorValue = currentValue;
-			offsetCount = 0;
-		}
+		for(int channel = 0; channel < channelCount; channel++) {
+			float currentValue = inputs[INPUT].getVoltage(channel);
 
-		bool slewing = offsetCount != 0;
-		float outputValue = currentValue;
-
-		if(offsetCount >= shiftTime) {
-			offsetCount = 0;
-			priorValue = currentValue;
-			targetValue = currentValue;
-			slewing = false;
-		}
-
-		if(!slewing) {
-			if(currentValue != priorValue) {
-				targetValue = currentValue;
-				offsetCount = 1;
-				slewing = true;
-			}
-		}
-
-		if(slewing) {
-			if(currentValue != targetValue) {
-				float lastKnown = ((shiftTime - (offsetCount - 1)) * 
-				priorValue + (offsetCount - 1) * targetValue) / shiftTime;
-			targetValue =currentValue;
-			priorValue = lastKnown;
-			offsetCount = 0;
+			if(offsetCount[channel] < 0) {
+				priorValue[channel] = currentValue;
+				offsetCount[channel] = 0;
 			}
 
-			outputValue = ((shiftTime - offsetCount) * priorValue + offsetCount * currentValue) / shiftTime;
-			offsetCount++;
+			bool slewing = offsetCount[channel] != 0;
+			float outputValue = currentValue;
+
+			if(offsetCount[channel] >= shiftTime) {
+				offsetCount[channel] = 0;
+				priorValue[channel] = currentValue;
+				targetValue[channel] = currentValue;
+				slewing = false;
+			}
+
+			if(!slewing) {
+				if(currentValue != priorValue[channel]) {
+					targetValue[channel] = currentValue;
+					offsetCount[channel] = 1;
+					slewing = true;
+				}
+			}
+
+			if(slewing) {
+				if(currentValue != targetValue[channel]) {
+					float lastKnown = ((shiftTime - (offsetCount[channel] - 1)) * priorValue[channel] + 
+						(offsetCount[channel] - 1) * targetValue[channel]) / shiftTime;
+					targetValue[channel] = currentValue;
+					priorValue[channel] = lastKnown;
+					offsetCount[channel] = 0;
+				}
+
+				outputValue = ((shiftTime - offsetCount[channel]) * priorValue[channel] + 
+					offsetCount[channel] * currentValue) / shiftTime;
+				offsetCount[channel]++;
+			}
+			
+			outputs[OUTPUT].setVoltage(outputValue, channel);
+			outputs[GATE].setVoltage(slewing ? 10.0f : 0.0f, channel);
 		}
-		
-		outputs[OUTPUT].setVoltage(outputValue);
-		outputs[GATE].setVoltage(slewing ? 10.0f : 0.0f);
 	}
 
 	void onReset() override {
-
 
     }
 
@@ -119,16 +126,16 @@ struct RSSlewWidget : ModuleWidget {
 		addChild(new RSLabelCentered(middle, box.size.y - 17, "Racket", RS_TITLE_FONT_SIZE, module));
 		addChild(new RSLabelCentered(middle, box.size.y - 5, "Science", RS_TITLE_FONT_SIZE, module));
 
-		addInput(createInputCentered<RSJackMonoIn>(Vec(middle, RS_ROW_COMP(0)), module, RSSlew::INPUT));
+		addInput(createInputCentered<RSJackPolyIn>(Vec(middle, RS_ROW_COMP(0)), module, RSSlew::INPUT));
 		addChild(new RSLabelCentered(middle, RS_ROW_LABEL(0), "IN", RS_LABEL_FONT_SIZE, module));
 
 		addParam(createParamCentered<RSKnobSml>(Vec(middle, RS_ROW_COMP(1)), module, RSSlew::SLEW_KNOB));
 		addChild(new RSLabelCentered(middle, RS_ROW_LABEL(1), "SLEW", RS_LABEL_FONT_SIZE, module));
 
-		addOutput(createOutputCentered<RSJackMonoOut>(Vec(middle,  RS_ROW_COMP(2)), module, RSSlew::OUTPUT));
+		addOutput(createOutputCentered<RSJackPolyOut>(Vec(middle,  RS_ROW_COMP(2)), module, RSSlew::OUTPUT));
 		addChild(new RSLabelCentered(middle, RS_ROW_LABEL(2), "OUT", RS_LABEL_FONT_SIZE, module));
 
-		addOutput(createOutputCentered<RSJackMonoOut>(Vec(middle,  RS_ROW_COMP(3)), module, RSSlew::GATE));
+		addOutput(createOutputCentered<RSJackPolyOut>(Vec(middle,  RS_ROW_COMP(3)), module, RSSlew::GATE));
 		addChild(new RSLabelCentered(middle, RS_ROW_LABEL(3), "GATE", RS_LABEL_FONT_SIZE, module));
 	};
 

@@ -8,9 +8,6 @@ struct RSRand : Module {
 		RAND_KNOB,
 		SLEW_KNOB,
 		PIVOT_BUTTON,
-		THINGY_BUTTON,
-		WOTSIT_BUTTON,
-		EJECT_BUTTON,
 		NUM_PARAMS
 	};
 	enum InputIds {
@@ -18,7 +15,6 @@ struct RSRand : Module {
 		NUM_INPUTS
 	};
 	enum OutputIds {
-		OUT1, OUT2,
 		NUM_OUTPUTS
 	};
 	enum LightIds {
@@ -26,63 +22,162 @@ struct RSRand : Module {
 		NUM_LIGHTS
 	};
 
+	dsp::ClockDivider modDivider;
+
 	dsp::SchmittTrigger randTrigger;
 	dsp::SchmittTrigger pivotTrigger;
 
-	std::vector<float> f;
+	// Right module ID tracking
+	int64_t RMId = -1;
+	int64_t priorRMId = -1;
+
+	// For PIVOTing
+	std::vector<float> storedValue;
+
+	// For SLEWing
+	std::vector<float> currentValue;
+	std::vector<float> priorValue;
+	std::vector<float> targetValue;
+	std::vector<int> offsetCount;
 
 	RSRand() {
 		config(NUM_PARAMS, NUM_INPUTS, NUM_OUTPUTS, NUM_LIGHTS);
 
-		configParam(RAND_BUTTON, 0.0f, 1.0f, 0.0f, "Randomise");
+		configButton(RAND_BUTTON, "Randomise");
 		configParam(RAND_KNOB, 0.0f, 1.0f, 0.5f, "Randomisation percentage", "%", 0.0f, 100.0f);
 		configParam(SLEW_KNOB, 0.0f, 1.0f, 0.0f, "Slew", " S");
-		configParam(PIVOT_BUTTON, 0.0f, 1.0f, 0.0f, "Pivot");
+		configSwitch(PIVOT_BUTTON, 0.0f, 1.0f, 0.0f, "Pivot", {"OFF", "ON"});
+		configInput(RAND_INPUT, "Randomisation trigger");
+
+		modDivider.setDivision(512);
 	}
 
 	void process(const ProcessArgs& args) override {
 		Module *m = this;
 		if(!m) return;
-        
-		if(m->rightExpander.moduleId < 0) return;
-		
 
-		if(randTrigger.process(params[RAND_BUTTON].getValue() + inputs[RAND_INPUT].getVoltage())) {
-			int i = 0;
-			
-			ModuleWidget *mw = APP->scene->rack->getModule(m->rightExpander.moduleId);
+		if(modDivider.process()) {
+			RMId = m->rightExpander.moduleId;
+			if(RMId < 0) return;
+
+			ModuleWidget *mw = APP->scene->rack->getModule(RMId);
 			if(!mw) return;
+			
+			if(RMId != priorRMId) { // We're initialising or have a new right module
+				printf("RSRand:RMId changed\n");
 
-			for(ParamWidget *param : mw->getParams()) {
-				float r = (float)rand() / (float)RAND_MAX - 0.5f;
+				mw = APP->scene->rack->getModule(RMId);
+				if(!mw) return;
+
+				// How many parameters are we dealing with?
+				int params = (int)(mw->getParams().size());
+				printf("RSRand:%i params\n", params);
 				
-				float v;
-                // If PIVOTing
-				if(params[PIVOT_BUTTON].getValue() && !f.empty())		// SLEW: v = in
-					v = f[i++];	// used previously stored parameters
-				else			// else use live parameters
-					v = param->getParamQuantity()->getScaledValue();
+				// Initialise vectors
+				currentValue.clear();	currentValue.reserve(params);
+				priorValue.clear();		priorValue.reserve(params);
+				targetValue.clear();	targetValue.reserve(params);
+				offsetCount.clear();	offsetCount.reserve(params);
 
-				float m = params[RAND_KNOB].getValue();
-				float vr = std::max(0.0f, std::min(v + (r * m), 1.0f));	// SLEW: vr is targetIn
-				param->getParamQuantity()->setScaledValue(vr);
+				int i = 0;
+				for(ParamWidget *param : mw->getParams()) {
+					offsetCount.push_back(-1);
+					currentValue[i++] = param->getParamQuantity()->getScaledValue();
+				}
+
+				priorRMId = RMId;
+			}
+
+			float randMult = params[RAND_KNOB].getValue();
+
+			if(randTrigger.process(params[RAND_BUTTON].getValue() + inputs[RAND_INPUT].getVoltage())) {
+
+				int i = 0;
+				for(ParamWidget *param : mw->getParams()) {
+					if(params[PIVOT_BUTTON].getValue() && !storedValue.empty())	// If PIVOTing
+						currentValue[i] = storedValue[i];	// used previously stored parameters
+					else									// else use live parameters and get a bonus random walk for free
+						currentValue[i] = param->getParamQuantity()->getScaledValue();
+
+					float r = (float)rand() / (float)RAND_MAX - 0.5f;
+					currentValue[i] = std::max(0.0f, std::min(currentValue[i] + (r * randMult), 1.0f));
+
+					i++;
+				}
+			}
+
+			// On hitting PIVOT, store current parameters
+			if(pivotTrigger.process(params[PIVOT_BUTTON].getValue())) {
+				printf("RSRand:PIVOT\n");
+
+				storedValue.clear();
+
+				for(ParamWidget *param : mw->getParams())
+					storedValue.push_back(param->getParamQuantity()->getScaledValue());
+			}
+
+			float slewTime = params[SLEW_KNOB].getValue();
+			int shiftTime = slewTime * args.sampleRate / 512;
+			//if(shiftTime < 10) shiftTime = 10;
+			
+			int i = 0;
+			for(ParamWidget *param : mw->getParams()) {
+
+				// As we are NOT setting this on a trigger like before, Stoermelder GRIPs are being overridden 
+				// Setting GRIP to audio rate processing appears to alleviate this
+
+				if(offsetCount[i] < 0) {
+					priorValue[i] = currentValue[i];
+					offsetCount[i] = 0;
+				}
+
+				bool slewing = offsetCount[i] != 0;
+				float outputValue = currentValue[i];
+
+				if(offsetCount[i] >= shiftTime) {
+					offsetCount[i] = 0;
+					priorValue[i] = currentValue[i];
+					targetValue[i] = currentValue[i];
+					slewing = false;
+				}
+
+				if(!slewing) {
+					if(currentValue[i] != priorValue[i]) {
+						targetValue[i] = currentValue[i];
+						offsetCount[i] = 0;
+						slewing = true;
+					}
+				}
+
+				if(slewing) {
+					if(currentValue[i] != targetValue[i]) {
+						float lastKnown = ((shiftTime - (offsetCount[i] - 1)) * priorValue[i] +
+							(offsetCount[i] - 1) * targetValue[i]) / shiftTime;
+						targetValue[i] = currentValue[i];
+						priorValue[i] = lastKnown;
+						offsetCount[i] = 0;
+					}
+
+					outputValue = ((shiftTime - offsetCount[i]) * priorValue[i] +
+						offsetCount[i] * currentValue[i]) / shiftTime;
+
+					offsetCount[i]++;
+				}
+
+				param->getParamQuantity()->setScaledValue(outputValue); // Only update this when actually slewing?
+				// As is we can't adjust knobs on target module when not slewing as we're constantly updating here.
+
+				// Would be nice to have a light to indicate when we're slewing,
+				//  this could help to set slew time when triggering rythmically,
+				//	would a slew gate output be of any use?
+
+				i++;
 			}
 		}
 
-		// On hitting PIVOT, store current parameters
-        if(pivotTrigger.process(params[PIVOT_BUTTON].getValue())) {
-			f.clear();
-
-			ModuleWidget *mw = APP->scene->rack->getModule(m->rightExpander.moduleId);
-			if(!mw) return;
-
-			for(ParamWidget *param : mw->getParams())
-				f.push_back(param->getParamQuantity()->getScaledValue());
-		}
 	}
 
 	void onReset() override {
-
 
     }
 
@@ -128,15 +223,6 @@ struct RSRandWidget : ModuleWidget {
 
 		addParam(createParamCentered<RSButtonToggle>(Vec(middle, RS_ROW_COMP(3)), module, RSRand::PIVOT_BUTTON));
 		addChild(new RSLabelCentered(middle, RS_ROW_LABEL(3), "PIVOT", RS_LABEL_FONT_SIZE, module));
-
-		addParam(createParamCentered<RSRoundButtonToggle>(Vec(middle, RS_ROW_COMP(4)), module, RSRand::THINGY_BUTTON));
-		addChild(new RSLabelCentered(middle, RS_ROW_LABEL(4), "THINGY", RS_LABEL_FONT_SIZE, module));
-
-		addParam(createParamCentered<RSRoundButtonToggle>(Vec(middle, RS_ROW_COMP(5)), module, RSRand::WOTSIT_BUTTON));
-		addChild(new RSLabelCentered(middle, RS_ROW_LABEL(5), "WOTSIT", RS_LABEL_FONT_SIZE, module));
-
-		addParam(createParamCentered<RSRoundButtonToggle>(Vec(middle, RS_ROW_COMP(6)), module, RSRand::WOTSIT_BUTTON));
-		addChild(new RSLabelCentered(middle, RS_ROW_LABEL(6), "EJECT", RS_LABEL_FONT_SIZE, module));
 
 		addInput(createInputCentered<RSJackMonoIn>(Vec(middle, RS_ROW_COMP(7)), module, RSRand::RAND_INPUT));
 		addChild(new RSLabelCentered(middle, RS_ROW_LABEL(7), "TRIG", RS_LABEL_FONT_SIZE, module));

@@ -82,7 +82,7 @@ struct RSKnob : SVGKnob {
 	RSKnob() {
 		minAngle = -0.83 * M_PI;
 		maxAngle = 0.83 * M_PI;
-		shadow->opacity = 0.0f; // Hide shadows
+		shadow->opacity = 0.0f;
 	}
 };
 
@@ -108,7 +108,7 @@ struct RSKnobDetentInvisible : RSKnobDetent { RSKnobDetentInvisible() {setSvg(AP
 // Buttons
 struct RSButton : SVGSwitch {
 	RSButton() {
-		shadow->opacity = 0.0f; // Hide shadows
+		shadow->opacity = 0.0f;
 	}
 };
 
