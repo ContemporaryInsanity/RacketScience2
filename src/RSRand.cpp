@@ -29,7 +29,7 @@ struct RSRand : Module {
 
 	// Right module ID tracking
 	int64_t RMId = -1;
-	int64_t priorRMId = -1;
+	int64_t priorRMId = -2;
 
 	// For PIVOTing
 	std::vector<float> storedValue;
@@ -45,11 +45,11 @@ struct RSRand : Module {
 
 		configButton(RAND_BUTTON, "Randomise");
 		configParam(RAND_KNOB, 0.0f, 1.0f, 0.5f, "Randomisation percentage", "%", 0.0f, 100.0f);
-		configParam(SLEW_KNOB, 0.0f, 1.0f, 0.0f, "Slew", " S");
+		configParam(SLEW_KNOB, 0.0f, 5.0f, 0.0f, "Slew", " S");
 		configSwitch(PIVOT_BUTTON, 0.0f, 1.0f, 0.0f, "Pivot", {"OFF", "ON"});
 		configInput(RAND_INPUT, "Randomisation trigger");
 
-		modDivider.setDivision(512);
+		modDivider.setDivision(256);
 	}
 
 	void process(const ProcessArgs& args) override {
@@ -58,13 +58,14 @@ struct RSRand : Module {
 
 		if(modDivider.process()) {
 			RMId = m->rightExpander.moduleId;
-			if(RMId < 0) return;
 
 			ModuleWidget *mw = APP->scene->rack->getModule(RMId);
 			if(!mw) return;
 			
 			if(RMId != priorRMId) { // We're initialising or have a new right module
 				printf("RSRand:RMId changed\n");
+				priorRMId = RMId;
+				if(RMId < 0) return;
 
 				mw = APP->scene->rack->getModule(RMId);
 				if(!mw) return;
@@ -84,11 +85,9 @@ struct RSRand : Module {
 					offsetCount.push_back(-1);
 					currentValue[i++] = param->getParamQuantity()->getScaledValue();
 				}
-
-				priorRMId = RMId;
 			}
 
-			float randMult = params[RAND_KNOB].getValue();
+			//float randMult = params[RAND_KNOB].getValue();
 
 			if(randTrigger.process(params[RAND_BUTTON].getValue() + inputs[RAND_INPUT].getVoltage())) {
 
@@ -100,7 +99,9 @@ struct RSRand : Module {
 						currentValue[i] = param->getParamQuantity()->getScaledValue();
 
 					float r = (float)rand() / (float)RAND_MAX - 0.5f;
-					currentValue[i] = std::max(0.0f, std::min(currentValue[i] + (r * randMult), 1.0f));
+					currentValue[i] = std::max(0.0f, std::min(currentValue[i] + (r * params[RAND_KNOB].getValue()), 1.0f));
+
+					// If NOT slewing (ie slew knob == 0) set parameters here
 
 					i++;
 				}
@@ -164,7 +165,8 @@ struct RSRand : Module {
 					offsetCount[i]++;
 				}
 
-				param->getParamQuantity()->setScaledValue(outputValue); // Only update this when actually slewing?
+				if(slewing && param->getParamQuantity()->randomizeEnabled)
+					param->getParamQuantity()->setScaledValue(outputValue); // Only update this when actually slewing?
 				// As is we can't adjust knobs on target module when not slewing as we're constantly updating here.
 
 				// Would be nice to have a light to indicate when we're slewing,
