@@ -95,13 +95,11 @@ struct RSKnobDetent : RSKnob {
 struct RSKnobSml : RSKnob { RSKnobSml() {setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/RSKnobSml.svg"))); } };
 struct RSKnobMed : RSKnob { RSKnobMed() {setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/RSKnobMed.svg"))); } };
 struct RSKnobLrg : RSKnob { RSKnobLrg() {setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/RSKnobLrg.svg"))); } };
-
 struct RSKnobInvisible : RSKnob { RSKnobInvisible() {setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/RSKnobInvisible.svg"))); } };
 
 struct RSKnobDetentSml : RSKnobDetent { RSKnobDetentSml() { setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/RSKnobSml.svg"))); } };
 struct RSKnobDetentMed : RSKnobDetent { RSKnobDetentMed() { setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/RSKnobMed.svg"))); } };
 struct RSKnobDetentLrg : RSKnobDetent { RSKnobDetentLrg() { setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/RSKnobLrg.svg"))); } };
-
 struct RSKnobDetentInvisible : RSKnobDetent { RSKnobDetentInvisible() {setSvg(APP->window->loadSvg(asset::plugin(pluginInstance, "res/components/RSKnobInvisible.svg"))); } };
 
 
